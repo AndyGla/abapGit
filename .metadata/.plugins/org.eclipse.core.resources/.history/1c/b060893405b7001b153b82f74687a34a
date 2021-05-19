@@ -1,0 +1,41 @@
+CLASS zcl_slah_generate_patient_data DEFINITION
+  PUBLIC
+  FINAL
+  CREATE PUBLIC .
+
+  PUBLIC SECTION.
+    INTERFACES if_oo_adt_classrun.
+  PROTECTED SECTION.
+  PRIVATE SECTION.
+ENDCLASS.
+
+
+
+CLASS zcl_slah_generate_patient_data IMPLEMENTATION.
+
+
+  METHOD if_oo_adt_classrun~main.
+
+    DATA itab TYPE TABLE OF zsla_patient.
+
+*   fill internal travel table (itab)
+    itab = VALUE #(
+      ( patnr = '0000001000' usernr = '0000001000' anrede = '2' vorname = 'Alex' nachname = 'Lovely' gebdat =  '01011991' geschlecht = 'M'
+        ort = 'Heppenheim' plz = '64646' strasse = 'Goethestr' hausnr = '17' telnr = '062521232456' )
+
+    ).
+
+*   delete existing entries in the database table
+    DELETE FROM zsla_patient.
+
+*   insert the new table entries
+    INSERT zsla_patient FROM TABLE @itab.
+
+*   output the result as a console message
+    out->write( |{ sy-dbcnt } travel entries inserted successfully!| ).
+
+  ENDMETHOD.
+
+
+
+ENDCLASS.

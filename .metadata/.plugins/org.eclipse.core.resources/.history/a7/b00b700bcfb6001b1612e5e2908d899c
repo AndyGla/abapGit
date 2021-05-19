@@ -1,0 +1,9 @@
+@EndUserText.label : 'Database Tabel for Travel Data AG08'
+@AbapCatalog.enhancement.category : #NOT_EXTENSIBLE
+@AbapCatalog.tableCategory : #TRANSPARENT
+@AbapCatalog.deliveryClass : #A
+@AbapCatalog.dataMaintenance : #RESTRICTED
+define table ztravel_app_ag08 {
+  key client : abap.clnt;
+
+}

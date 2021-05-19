@@ -1,0 +1,14 @@
+CLASS zcl_slah_generate_patient_data DEFINITION
+  PUBLIC
+  FINAL
+  CREATE PUBLIC .
+
+  PUBLIC SECTION.
+  PROTECTED SECTION.
+  PRIVATE SECTION.
+ENDCLASS.
+
+
+
+CLASS zcl_slah_generate_patient_data IMPLEMENTATION.
+ENDCLASS.

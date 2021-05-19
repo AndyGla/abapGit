@@ -1,0 +1,9 @@
+@EndUserText.label : 'Database Table Patient'
+@AbapCatalog.enhancement.category : #NOT_EXTENSIBLE
+@AbapCatalog.tableCategory : #TRANSPARENT
+@AbapCatalog.deliveryClass : #A
+@AbapCatalog.dataMaintenance : #RESTRICTED
+define table zsla_patient {
+  key client : abap.clnt;
+
+}

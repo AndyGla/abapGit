@@ -1,0 +1,40 @@
+@EndUserText.label : 'Database Table Patient'
+@AbapCatalog.enhancement.category : #NOT_EXTENSIBLE
+@AbapCatalog.tableCategory : #TRANSPARENT
+@AbapCatalog.deliveryClass : #A
+@AbapCatalog.dataMaintenance : #RESTRICTED
+define table zsla_patient {
+  key client : abap.clnt not null;
+  key patnr  : sysuuid_x16 not null;
+  usernr     : char10;
+  vernr      : char10;
+  privgese   : char1;
+  nrvers     : char10;
+  kispatnr   : char10;
+  anrede     : zsla_anrede_type;
+  titel      : char20;
+  vorname    : char45;
+  nachname   : char45;
+  gebdat     : char10;
+  geschlecht : zsla_geschl_type;
+  land       : char3;
+  plz        : char10;
+  ort        : char40;
+  strasse    : char45;
+  hausnr     : char10;
+  zusatz     : char40;
+  postfach   : char8;
+  telnr      : char20;
+  mobilnr    : char20;
+  fax        : char20;
+  email      : char40;
+  ds1flag    : char1;
+  ds1date    : char10;
+  eruname    : char10;
+  erdat      : char10;
+  erzeit     : char6;
+  aeuname    : char10;
+  aedat      : char10;
+  aezeit     : char6;
+
+}

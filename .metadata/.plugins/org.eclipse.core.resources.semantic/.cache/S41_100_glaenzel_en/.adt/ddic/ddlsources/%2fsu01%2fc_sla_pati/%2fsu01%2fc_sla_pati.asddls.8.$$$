@@ -1,0 +1,14 @@
+@AccessControl.authorizationCheck: #CHECK
+@Metadata.allowExtensions: true
+@EndUserText.label: 'Projection View for /SU01/SLA_PATIEN'
+@Search.searchable: true
+define view entity /SU01/C_SLA_PATI
+  as projection on /SU01/I_SLA_PATI
+{
+
+  key id            as BusinessPartnerID,  
+      given_name    as GivenName,
+      middle_name   as MiddleName,
+      family_name   as FamilyName  
+
+}

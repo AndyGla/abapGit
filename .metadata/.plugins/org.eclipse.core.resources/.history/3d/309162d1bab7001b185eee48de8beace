@@ -1,0 +1,102 @@
+*"* use this source file for the definition and implementation of
+*"* local helper classes, interface definitions and type
+*"* declarations
+
+CLASS lhc_travel DEFINITION INHERITING FROM cl_abap_behavior_handler.
+  PRIVATE SECTION.
+  
+      TYPES tt_travel_update TYPE TABLE FOR UPDATE zi_travel_m_ag08.
+
+    METHODS validate_customer          FOR VALIDATE ON SAVE IMPORTING keys FOR travel~validateCustomer.
+    METHODS validate_dates             FOR VALIDATE ON SAVE IMPORTING keys FOR travel~validateDates.
+    METHODS validate_agency             FOR VALIDATE ON SAVE IMPORTING keys FOR travel~validateAgency.
+
+    METHODS set_status_completed       FOR MODIFY IMPORTING   keys FOR ACTION travel~acceptTravel              RESULT result.
+    METHODS get_features               FOR FEATURES IMPORTING keys REQUEST    requested_features FOR travel    RESULT result.
+
+    METHODS CalculateTravelKey         FOR DETERMINE ON MODIFY IMPORTING keys FOR Travel~CalculateTravelKey.
+  
+
+*    METHODS get_instance_features FOR INSTANCE FEATURES
+*      IMPORTING keys REQUEST requested_features FOR travel RESULT result.
+*
+*    METHODS acceptTravel FOR MODIFY
+*      IMPORTING keys FOR ACTION travel~acceptTravel RESULT result.
+*
+*    METHODS CalculateTravelKey FOR DETERMINE ON MODIFY
+*      IMPORTING keys FOR travel~CalculateTravelKey.
+*
+*    METHODS validateAgency FOR VALIDATE ON SAVE
+*      IMPORTING keys FOR travel~validateAgency.
+*
+*    METHODS validateCustomer FOR VALIDATE ON SAVE
+*      IMPORTING keys FOR travel~validateCustomer.
+*
+*    METHODS validateDates FOR VALIDATE ON SAVE
+*      IMPORTING keys FOR travel~validateDates.
+
+ENDCLASS.
+
+CLASS lhc_travel IMPLEMENTATION.
+
+**********************************************************************
+*
+* Validate customer data when saving travel data
+*
+**********************************************************************
+  METHOD validate_customer.
+
+    READ ENTITY zi_travel_m_ag08\\travel FROM VALUE #(
+        FOR <root_key> IN keys ( %key-mykey     = <root_key>-mykey
+                                 %control = VALUE #( customer_id = if_abap_behv=>mk-on ) ) )
+        RESULT DATA(lt_travel).
+
+    DATA lt_customer TYPE SORTED TABLE OF /dmo/customer WITH UNIQUE KEY customer_id.
+
+    " Optimization of DB select: extract distinct non-initial customer IDs
+    lt_customer = CORRESPONDING #( lt_travel DISCARDING DUPLICATES MAPPING customer_id = customer_id EXCEPT * ).
+    DELETE lt_customer WHERE customer_id IS INITIAL.
+    CHECK lt_customer IS NOT INITIAL.
+
+    " Check if customer ID exist
+    SELECT FROM /dmo/customer FIELDS customer_id
+      FOR ALL ENTRIES IN @lt_customer
+      WHERE customer_id = @lt_customer-customer_id
+      INTO TABLE @DATA(lt_customer_db).
+
+    " Raise msg for non existing customer id
+    LOOP AT lt_travel INTO DATA(ls_travel).
+      IF ls_travel-customer_id IS NOT INITIAL AND NOT line_exists( lt_customer_db[ customer_id = ls_travel-customer_id ] ).
+        APPEND VALUE #(  mykey = ls_travel-mykey ) TO failed-travel.
+        APPEND VALUE #(  mykey = ls_travel-mykey
+                         %msg      = new_message( id       = /dmo/cx_flight_legacy=>customer_unkown-msgid
+                                                  number   = /dmo/cx_flight_legacy=>customer_unkown-msgno
+                                                  v1       = ls_travel-customer_id
+                                                  severity = if_abap_behv_message=>severity-error )
+                         %element-customer_id = if_abap_behv=>mk-on ) TO reported-travel.
+      ENDIF.
+
+    ENDLOOP.
+
+  ENDMETHOD.
+
+
+  METHOD get_instance_features.
+  ENDMETHOD.
+
+  METHOD acceptTravel.
+  ENDMETHOD.
+
+  METHOD CalculateTravelKey.
+  ENDMETHOD.
+
+  METHOD validateAgency.
+  ENDMETHOD.
+
+  METHOD validateCustomer.
+  ENDMETHOD.
+
+  METHOD validateDates.
+  ENDMETHOD.
+
+ENDCLASS.

@@ -1,0 +1,21 @@
+*
+*CLASS zbp_i_travel_m_ag08 DEFINITION
+*        PUBLIC
+*        ABSTRACT
+*        FINAL
+*        FOR BEHAVIOR OF zi_travel_m_ag08.
+*ENDCLASS.
+*
+*CLASS zbp_i_travel_m_ag08 IMPLEMENTATION.
+*ENDCLASS.
+
+CLASS zbp_i_travel_m_ag08 DEFINITION
+PUBLIC
+ABSTRACT
+FINAL
+FOR BEHAVIOR OF ZI_Travel_M_AG08.
+
+ENDCLASS.
+
+CLASS zbp_i_travel_m_ag08 IMPLEMENTATION.
+ENDCLASS.

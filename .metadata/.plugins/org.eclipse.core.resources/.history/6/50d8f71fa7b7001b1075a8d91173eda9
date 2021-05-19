@@ -1,0 +1,12 @@
+managed; // implementation in class zbp_sla_i_patient_m unique;
+
+define behavior for ZSLA_I_PATIENT_M //alias <alias_name>
+persistent table ZSLA_PATIENT
+//lock master
+//authorization master ( instance )
+//etag master <field_name>
+{
+  create;
+  update;
+  delete;
+}

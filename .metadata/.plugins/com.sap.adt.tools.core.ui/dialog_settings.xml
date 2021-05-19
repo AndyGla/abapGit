@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<section name="Workbench">
+	<section name="OpenABAPDevelopmentObject.history">
+		<item key="ShowStatusLine" value="true"/>
+		<item key="History" value="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;&#x0D;&#x0A;&lt;History&gt;&#x0D;&#x0A;&lt;historyRootNode&gt;&#x0D;&#x0A;&lt;infoNode com.sap.adt.util.ui.dialogs.ScopedFilteredItemsSelectionDialog.history=&quot;#Mon May 10 12:08:23 CEST 2021&amp;#x0D;&amp;#x0A;item=\#Mon May 10 12\:08\:23 CEST 2021\r\nname\=ZRAP400_TRAVEL_AG13\r\ndescription\=DSAG ABAP Dev Days 2021\r\npackageName\=ZRAP400_TRAVEL_AG13\r\ntype\=DEVC/K\r\nuri\=/sap/bc/adt/packages/zrap400_travel_ag13\r\n&amp;#x0D;&amp;#x0A;scope=TRL_DE&amp;#x0D;&amp;#x0A;timestamp=1620641303344&amp;#x0D;&amp;#x0A;&quot;/&gt;&#x0D;&#x0A;&lt;/historyRootNode&gt;&#x0D;&#x0A;&lt;/History&gt;"/>
+	</section>
+	<section name="OpenABAPDevelopmentObject.dialog">
+		<item key="DIALOG_X_ORIGIN" value="1656"/>
+		<item key="DIALOG_Y_ORIGIN" value="537"/>
+		<item key="DIALOG_WIDTH" value="551"/>
+		<item key="DIALOG_HEIGHT" value="786"/>
+		<item key="DIALOG_FONT_NAME" value="1|Segoe UI|9.0|0|WINDOWS|1|-18|0|0|0|400|0|0|0|1|0|0|0|0|Segoe UI"/>
+	</section>
+	<section name="AdtPackageSearchDialog.section">
+		<item key="ShowStatusLine" value="true"/>
+		<item key="History" value="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;&#x0D;&#x0A;&lt;History/&gt;"/>
+		<section name="DialogBoundsSettings">
+			<item key="DIALOG_HEIGHT" value="500"/>
+			<item key="DIALOG_WIDTH" value="600"/>
+			<item key="DIALOG_X_ORIGIN" value="1631"/>
+			<item key="DIALOG_Y_ORIGIN" value="728"/>
+			<item key="DIALOG_FONT_NAME" value="1|Segoe UI|9.0|0|WINDOWS|1|-18|0|0|0|400|0|0|0|1|0|0|0|0|Segoe UI"/>
+		</section>
+	</section>
+	<section name="TracesView">
+		<section name="columnWidths">
+			<item key="DESCRIPTION" value="560"/>
+			<item key="TIME" value="70"/>
+			<item key="DATE" value="60"/>
+			<item key="TRACED_OBJECT" value="180"/>
+			<item key="AGGREGATION_KIND" value="100"/>
+			<item key="RUNTIME" value="80"/>
+			<item key="FILE_SIZE" value="60"/>
+			<item key="AMDP_FILE_SIZE" value="60"/>
+			<item key="EXPIRATION" value="80"/>
+			<item key="STATE" value="80"/>
+			<item key="HOST" value="80"/>
+			<item key="USER_NAME" value="100"/>
+			<item key="RUNTIME_ABAP" value="80"/>
+			<item key="RUNTIME_DB" value="80"/>
+			<item key="RUNTIME_SYSTEM" value="80"/>
+		</section>
+		<section name="columnPositions">
+			<item key="DESCRIPTION" value="0"/>
+			<item key="TIME" value="1"/>
+			<item key="DATE" value="2"/>
+			<item key="TRACED_OBJECT" value="3"/>
+			<item key="AGGREGATION_KIND" value="4"/>
+			<item key="RUNTIME" value="5"/>
+			<item key="FILE_SIZE" value="6"/>
+			<item key="AMDP_FILE_SIZE" value="7"/>
+			<item key="EXPIRATION" value="8"/>
+			<item key="STATE" value="9"/>
+			<item key="HOST" value="10"/>
+			<item key="USER_NAME" value="11"/>
+			<item key="RUNTIME_ABAP" value="12"/>
+			<item key="RUNTIME_DB" value="13"/>
+			<item key="RUNTIME_SYSTEM" value="14"/>
+		</section>
+	</section>
+	<section name="OpenABAPDevelopmentObject.history.[STOB, TABL]">
+		<item key="ShowStatusLine" value="true"/>
+		<item key="History" value="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;&#x0D;&#x0A;&lt;History&gt;&#x0D;&#x0A;&lt;historyRootNode&gt;&#x0D;&#x0A;&lt;infoNode com.sap.adt.util.ui.dialogs.ScopedFilteredItemsSelectionDialog.history=&quot;#Fri May 14 10:56:55 CEST 2021&amp;#x0D;&amp;#x0A;item=\#Fri May 14 10\:56\:55 CEST 2021\r\nname\=/SU01/SLA_PATIEN\r\ndescription\=Database Table\r\ntype\=TABL/DT\r\nuri\=/sap/bc/adt/ddic/tables/%2fsu01%2fsla_patien\r\n&amp;#x0D;&amp;#x0A;scope=S41_100_glaenzel_en&amp;#x0D;&amp;#x0A;timestamp=1620982615650&amp;#x0D;&amp;#x0A;&quot;/&gt;&#x0D;&#x0A;&lt;/historyRootNode&gt;&#x0D;&#x0A;&lt;/History&gt;"/>
+	</section>
+	<section name="com.sap.adt.tools.core.ui.nameditem.NamedItemBrowseListenerForTextViewer$NamedItemListSelectionDialog_dialogBounds">
+		<item key="DIALOG_X_ORIGIN" value="108"/>
+		<item key="DIALOG_Y_ORIGIN" value="-52"/>
+		<item key="DIALOG_WIDTH" value="658"/>
+		<item key="DIALOG_HEIGHT" value="747"/>
+		<item key="DIALOG_FONT_NAME" value="1|Segoe UI|9.0|0|WINDOWS|1|-18|0|0|0|400|0|0|0|1|0|0|0|0|Segoe UI"/>
+	</section>
+	<section name="OpenABAPDevelopmentObject.history.[DOMA, DTAB, STRU]">
+		<item key="ShowStatusLine" value="true"/>
+		<item key="History" value="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;&#x0D;&#x0A;&lt;History&gt;&#x0D;&#x0A;&lt;historyRootNode&gt;&#x0D;&#x0A;&lt;infoNode com.sap.adt.util.ui.dialogs.ScopedFilteredItemsSelectionDialog.history=&quot;#Mon May 17 10:21:35 CEST 2021&amp;#x0D;&amp;#x0A;item=\#Mon May 17 10\:21\:35 CEST 2021\r\nname\=ZSLA_ANRED\r\ntype\=DOMA/DD\r\nuri\=/sap/bc/adt/ddic/domains/zsla_anred\r\n&amp;#x0D;&amp;#x0A;scope=TRL_DE&amp;#x0D;&amp;#x0A;timestamp=1621239449696&amp;#x0D;&amp;#x0A;&quot;/&gt;&#x0D;&#x0A;&lt;infoNode com.sap.adt.util.ui.dialogs.ScopedFilteredItemsSelectionDialog.history=&quot;#Mon May 17 10:21:35 CEST 2021&amp;#x0D;&amp;#x0A;item=\#Mon May 17 10\:21\:35 CEST 2021\r\nname\=ZSLA_GESCHLECHT_DOM\r\ntype\=DOMA/DD\r\nuri\=/sap/bc/adt/ddic/domains/zsla_geschlecht_dom\r\n&amp;#x0D;&amp;#x0A;scope=TRL_DE&amp;#x0D;&amp;#x0A;timestamp=1621239695241&amp;#x0D;&amp;#x0A;&quot;/&gt;&#x0D;&#x0A;&lt;/historyRootNode&gt;&#x0D;&#x0A;&lt;/History&gt;"/>
+	</section>
+	<section name="ABAP Log View">
+	</section>
+	<section name="TMView">
+		<section name="columnWidths">
+			<item key="REQUEST" value="700"/>
+			<item key="OWNER" value="100"/>
+			<item key="Type" value="220"/>
+			<item key="DESCRIPTION" value="220"/>
+			<item key="LAST_CHANGED" value="500"/>
+		</section>
+		<section name="columnPositions">
+			<item key="REQUEST" value="0"/>
+			<item key="OWNER" value="1"/>
+			<item key="Type" value="2"/>
+			<item key="DESCRIPTION" value="3"/>
+			<item key="LAST_CHANGED" value="4"/>
+		</section>
+	</section>
+</section>

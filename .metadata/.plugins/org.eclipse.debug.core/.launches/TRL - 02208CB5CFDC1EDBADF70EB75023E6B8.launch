@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<launchConfiguration type="com.sap.adt.debugger.launchConfigurationType">
+    <mapAttribute key="SESSION_INFO">
+        <mapEntry key="APPSERVER" value="0xa0b13b4"/>
+        <mapEntry key="CAN_ADT_CROSS_SERVER" value="true"/>
+        <mapEntry key="CLIENT" value="100"/>
+        <mapEntry key="DEBUGGEE_ID" value="02208CB5CFDC1EDBADF70EB75023E6B8"/>
+        <mapEntry key="DEBUGGEE_SESSION_ID" value=""/>
+        <mapEntry key="DEBUGGEE_USER" value="CB0000000703"/>
+        <mapEntry key="DUMP_ID" value="RAISE_SHORTDUMP"/>
+        <mapEntry key="DUMP_TIME" value="09:07:24"/>
+        <mapEntry key="DUMP_URI" value="DUMP_URI"/>
+        <mapEntry key="IDE_ID" value=""/>
+        <mapEntry key="INCL_CURR" value="CL_SADL_SHORTDUMP=============CM006"/>
+        <mapEntry key="INSTANCE_NAME" value="0xa0b13b4_TRL_00"/>
+        <mapEntry key="IS_POST_MORTEM" value="true"/>
+        <mapEntry key="IS_SAME_SERVER" value="false"/>
+        <mapEntry key="LINE_CURR" value="46"/>
+        <mapEntry key="NAME" value="CL_SADL_SHORTDUMP"/>
+        <mapEntry key="PRG_CURR" value="CL_SADL_SHORTDUMP=============CP"/>
+        <mapEntry key="RFCDEST" value="0xa0b13b4_TRL_00"/>
+        <mapEntry key="SYSTEM_ID" value="TRL"/>
+        <mapEntry key="SYSTEM_NO" value="00"/>
+        <mapEntry key="URI" value="/sap/bc/adt/oo/classes/cl_sadl_shortdump/source/main#start=46"/>
+    </mapAttribute>
+    <mapAttribute key="SETTINGS">
+        <mapEntry key="alwaysCreateExceptionObject" value="false"/>
+        <mapEntry key="debugAutomaticSharedObjectAreaConstructors" value="false"/>
+        <mapEntry key="debugSystemPrograms" value="false"/>
+        <mapEntry key="optimizeColumnWidthWithoutHeader" value="false"/>
+        <mapEntry key="optimizeStepPerformance" value="true"/>
+        <mapEntry key="showDataAging" value="false"/>
+        <mapEntry key="suspendBackgroundRfcRequests" value="false"/>
+        <mapEntry key="useMonospacedFont" value="false"/>
+    </mapAttribute>
+    <booleanAttribute key="org.eclipse.debug.ui.private" value="true"/>
+    <stringAttribute key="projectName" value="TRL_DE"/>
+</launchConfiguration>

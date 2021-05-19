@@ -1,0 +1,4 @@
+@EndUserText.label: 'Service Defition Patient'
+define service ZSLA_SD_PATIENT_M {
+  expose ZSLA_C_PATIENT_M as patient;
+}

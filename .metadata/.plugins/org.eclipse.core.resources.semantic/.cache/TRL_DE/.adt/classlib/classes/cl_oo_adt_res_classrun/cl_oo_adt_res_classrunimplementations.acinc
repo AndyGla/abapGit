@@ -1,0 +1,1239 @@
+************************************************************************
+
+CLASS cl_oo_adt_res_classrun DEFINITION LOCAL FRIENDS lcl_classrun_output_stream.
+
+************************************************************************
+CLASS lcl_classrun_output_stream IMPLEMENTATION.
+
+  METHOD add_elementary_object.
+    DATA: lr_elementary  TYPE REF TO data,
+          lr_structured  TYPE REF TO data,
+          lr_tabular     TYPE REF TO data,
+          lo_struct_type TYPE REF TO cl_abap_structdescr.
+
+    FIELD-SYMBOLS <ls_segment> LIKE LINE OF mt_stream.
+
+    IF mv_name = gc_initial_name.
+      mv_name = `Field` ##no_text.
+    ENDIF.
+
+    IF iv_format = lif_classrun_output_formats=>nonprop.
+      mv_name = `np` && mv_name.
+    ENDIF.
+
+    GET REFERENCE OF ia_elementary INTO lr_elementary.
+
+    elementary2structured(
+      EXPORTING ir_elementary  = lr_elementary
+                io_elem_type   = io_elem_type
+      IMPORTING er_structured  = lr_structured
+                eo_struct_type = lo_struct_type ).
+
+    lr_tabular = structured2tabular(
+                   ir_structured  = lr_structured
+                   io_struct_type = lo_struct_type ).
+
+    APPEND INITIAL LINE TO mt_stream ASSIGNING <ls_segment>.
+    <ls_segment>-name  = mv_name.
+    create_value( EXPORTING ir_tabular = lr_tabular
+                  CHANGING  cs_segment = <ls_segment> ).
+
+  ENDMETHOD.
+
+  METHOD add_structured_object.
+    DATA: lr_structured  TYPE REF TO data,
+          lr_tabular     TYPE REF TO data,
+          lo_struct_type LIKE io_struct_type.
+
+    FIELD-SYMBOLS <ls_segment> LIKE LINE OF mt_stream.
+
+    lo_struct_type = check_structure( io_struct_type ).
+
+    IF mv_name = gc_initial_name.
+      mv_name = `Structure` ##no_text.
+    ENDIF.
+
+    IF iv_format = lif_classrun_output_formats=>nonprop.
+      mv_name = `np` && mv_name.
+    ENDIF.
+
+    GET REFERENCE OF ia_structured INTO lr_structured.
+
+    lr_tabular = structured2tabular(
+                   ir_structured  = lr_structured
+                   io_struct_type = lo_struct_type ).
+
+    APPEND INITIAL LINE TO mt_stream ASSIGNING <ls_segment>.
+    <ls_segment>-name  = mv_name.
+    create_value( EXPORTING ir_tabular = lr_tabular
+                  CHANGING  cs_segment = <ls_segment> ).
+
+  ENDMETHOD.
+
+  METHOD add_tabular_object.
+    DATA: lr_elementary  TYPE REF TO data,
+          lr_structured  TYPE REF TO data,
+          lr_tabular     TYPE REF TO data,
+          lo_line_type   TYPE REF TO cl_abap_datadescr,
+          lo_elem_type   TYPE REF TO cl_abap_elemdescr,
+          lo_struct_type TYPE REF TO cl_abap_structdescr,
+          lo_table_type  TYPE REF TO cl_abap_tabledescr.
+
+    FIELD-SYMBOLS <ls_segment> LIKE LINE OF mt_stream.
+
+    FIELD-SYMBOLS: <ls_structured> TYPE data,
+                   <lt_tabular>    TYPE STANDARD TABLE.
+
+    IF mv_name = gc_initial_name.
+      mv_name = `Table` ##no_text.
+    ENDIF.
+
+    IF iv_format = lif_classrun_output_formats=>nonprop.
+      mv_name = `np` && mv_name.
+    ENDIF.
+
+    lo_line_type = io_table_type->get_table_line_type( ).
+
+    TRY.
+        lo_struct_type ?=  lo_line_type.
+        lo_struct_type = check_structure( lo_struct_type ).
+        GET REFERENCE OF ia_tabular INTO lr_tabular.
+        APPEND INITIAL LINE TO mt_stream ASSIGNING <ls_segment>.
+        <ls_segment>-name  = mv_name.
+        create_value( EXPORTING ir_tabular = lr_tabular
+                      CHANGING  cs_segment = <ls_segment> ).
+        RETURN.
+      CATCH cx_sy_move_cast_error ##no_handler.
+    ENDTRY.
+
+    TRY.
+        lo_elem_type ?=  lo_line_type.
+        IF ia_tabular IS NOT INITIAL.
+          LOOP AT ia_tabular REFERENCE INTO lr_elementary.
+            elementary2structured(
+              EXPORTING ir_elementary  = lr_elementary
+                        io_elem_type   = lo_elem_type
+              IMPORTING er_structured  = lr_structured
+                        eo_struct_type = lo_struct_type ).
+            IF lr_tabular IS INITIAL.
+              TRY.
+                  lo_table_type = cl_abap_tabledescr=>get(
+                    p_line_type  = lo_struct_type
+                    p_table_kind = cl_abap_tabledescr=>tablekind_std ).
+                  CREATE DATA lr_tabular TYPE HANDLE lo_table_type.
+                  ASSIGN lr_tabular->* TO <lt_tabular>.
+                CATCH cx_sy_table_creation.
+                  GET REFERENCE OF 'Error' INTO lr_tabular ##no_text.
+                  EXIT.
+              ENDTRY.
+            ENDIF.
+            ASSIGN lr_structured->* TO <ls_structured>.
+            APPEND <ls_structured> TO <lt_tabular>.
+          ENDLOOP.
+          APPEND INITIAL LINE TO mt_stream ASSIGNING <ls_segment>.
+          <ls_segment>-name  = mv_name.
+          create_value( EXPORTING ir_tabular = lr_tabular
+                        CHANGING  cs_segment = <ls_segment> ).
+        ELSE.
+          "An initial table with elementary line type is treated as an empty string
+          add_elementary_object( ia_elementary = ``
+                                 io_elem_type  = cl_abap_elemdescr=>get_string( )
+                                 iv_format     = iv_format ).
+          REPLACE `Field` IN mv_name WITH `Table` ##no_text.
+          REPLACE `Table Table` IN mv_name WITH `Table` ##no_text.
+          REPLACE `npTable npTable` IN mv_name WITH `npTable` ##no_text.
+          READ TABLE mt_stream ASSIGNING <ls_segment> INDEX lines( mt_stream ).
+          <ls_segment>-name  = mv_name.
+        ENDIF.
+        RETURN.
+      CATCH cx_sy_move_cast_error ##no_handler.
+    ENDTRY.
+
+  ENDMETHOD.
+
+  METHOD check_structure.
+    DATA:
+      lt_components     TYPE cl_abap_structdescr=>included_view,
+      ls_component      LIKE LINE OF lt_components,
+      lt_components_new TYPE cl_abap_structdescr=>component_table,
+      lo_elem_type      TYPE REF TO cl_abap_elemdescr ##needed.
+
+    FIELD-SYMBOLS
+      <ls_component_new> LIKE LINE OF lt_components_new.
+
+    lt_components = io_struct_type->get_included_view( ).
+
+    LOOP AT lt_components INTO ls_component.
+      TRY.
+          "Check elementary
+          lo_elem_type ?= ls_component-type.
+          "Build new component table with resolved includes
+          APPEND INITIAL LINE TO lt_components_new ASSIGNING  <ls_component_new>.
+          <ls_component_new>-name = ls_component-name.
+          <ls_component_new>-type = ls_component-type.
+        CATCH cx_sy_move_cast_error.
+          RAISE EXCEPTION TYPE lcx_classrun_output_npossible.
+      ENDTRY.
+    ENDLOOP.
+
+    "Structure type with resolved included structures
+    ro_struct_type = cl_abap_structdescr=>get( lt_components_new ).
+
+  ENDMETHOD.
+
+  METHOD close.
+    DATA lv_xml TYPE string.
+
+    IF mv_closed = abap_true.
+      RETURN.
+    ENDIF.
+
+    finalize_stream( ).
+
+    TRY.
+        CALL TRANSFORMATION id
+           SOURCE (mt_stream)
+           RESULT XML lv_xml.
+      CATCH cx_transformation_error INTO DATA(lcx_transformation_error).
+        rv_output = lcx_transformation_error->get_text( ).
+    ENDTRY.
+
+    TRY.
+        rv_output = finalize_xml( lv_xml ).
+      CATCH cx_sy_regex_too_complex.
+        CALL TRANSFORMATION id SOURCE XML
+           `<ab:abapOutput xmlns:ab="http://www.sap.com/abapdemos">` &
+           ` <ab:output>` &
+           `  <ab:text format="normal">Data too complex or too large, output not possible.</ab:text>` &
+           ` </ab:output>` &
+           `</ab:abapOutput>` ##no_text
+           RESULT XML rv_output.
+    ENDTRY.
+
+    IF mt_stream IS NOT INITIAL.
+      RAISE EVENT completed EXPORTING ev_output = rv_output.
+    ENDIF.
+
+    CLEAR mt_stream.
+    mv_closed = abap_true.
+  ENDMETHOD.
+
+  METHOD create_value.
+    DATA
+      lo_table_type TYPE REF TO cl_abap_tabledescr.
+
+    FIELD-SYMBOLS:
+      <lt_tabular_old> TYPE ANY TABLE,
+      <lt_tabular_new> TYPE ANY TABLE.
+
+    ASSIGN ir_tabular->* TO <lt_tabular_old>.
+    lo_table_type ?= cl_abap_typedescr=>describe_by_data( <lt_tabular_old> ).
+
+    CREATE DATA cs_segment-value TYPE HANDLE lo_table_type.
+    ASSIGN cs_segment-value->* TO <lt_tabular_new>.
+    <lt_tabular_new> = <lt_tabular_old>.
+
+  ENDMETHOD.
+
+  METHOD elementary2structured.
+    DATA: lt_components TYPE cl_abap_structdescr=>component_table,
+          ls_component  LIKE LINE OF lt_components.
+
+    FIELD-SYMBOLS: <lv_elementary> TYPE data,
+                   <ls_structured> TYPE data,
+                   <lv_component>  TYPE data.
+
+    ls_component-name = `ab_elmntry` ##no_text.
+    ls_component-type = io_elem_type.
+    APPEND ls_component TO lt_components.
+
+    TRY.
+        eo_struct_type = cl_abap_structdescr=>get( lt_components ).
+        CREATE DATA er_structured TYPE HANDLE eo_struct_type.
+        ASSIGN ir_elementary->* TO <lv_elementary>.
+        ASSIGN er_structured->* TO <ls_structured>.
+        ASSIGN COMPONENT 1 OF STRUCTURE <ls_structured> TO <lv_component>.
+        <lv_component> = <lv_elementary>.
+      CATCH cx_sy_struct_creation.
+        GET REFERENCE OF 'Error' INTO er_structured ##no_text.
+    ENDTRY.
+
+  ENDMETHOD.
+
+  METHOD finalize_stream.
+    DATA:
+      lo_data_type       TYPE REF TO cl_abap_typedescr,
+      lo_elem_type_new   TYPE REF TO cl_abap_elemdescr,
+      lo_struct_type     TYPE REF TO cl_abap_structdescr,
+      lo_struct_type_new TYPE REF TO cl_abap_structdescr,
+      lo_struct_type_obj TYPE REF TO cl_abap_structdescr,
+      lo_table_type      TYPE REF TO cl_abap_tabledescr,
+      lo_table_type_new  TYPE REF TO cl_abap_tabledescr,
+      lt_components      TYPE cl_abap_structdescr=>component_table,
+      lt_components_new  TYPE cl_abap_structdescr=>component_table,
+      lt_components_obj  TYPE cl_abap_structdescr=>component_table,
+      lr_tabular_new     TYPE REF TO data,
+      lr_structured_new  TYPE REF TO data,
+      lr_structured_obj  TYPE REF TO data,
+      lr_elementary_new  TYPE REF TO data,
+      lv_index           LIKE sy-tabix,
+      lv_name            TYPE string,
+      lv_hex_flag        TYPE abap_bool,
+      lv_subrc           TYPE sy-subrc.
+
+
+    FIELD-SYMBOLS: <ls_segment>        LIKE LINE OF mt_stream,
+                   <lt_tabular>        TYPE ANY TABLE,
+                   <ls_component>      LIKE LINE OF lt_components,
+                   <lt_tabular_new>    TYPE ANY TABLE,
+                   <ls_structured>     TYPE data,
+                   <ls_structured_new> TYPE data,
+                   <ls_structured_obj> TYPE data,
+                   <lv_elementary_new> TYPE data,
+                   <lv_component>      TYPE string,
+                   <lv_component_obj>  TYPE data,
+                   <lv_old>            TYPE data,
+                   <lv_new>            TYPE data.
+
+    lo_elem_type_new = cl_abap_elemdescr=>get_string( ).
+
+    LOOP AT mt_stream ASSIGNING <ls_segment> WHERE name <>  `ab_` && gc_text AND
+                                                   name <>  `ab_xml`  AND
+                                                   name <>  `ab_json`  AND
+                                                   name <>  `ab_html` AND
+                                                   name NP |ab_{ gc_heading }+| AND
+                                                   name NP |ab_{ gc_nonprop }|.
+
+      lv_index = sy-tabix.
+      lv_name  = <ls_segment>-name.
+      "Replace component names with "compi" in table
+      ASSIGN <ls_segment>-value->* TO  <lt_tabular>.
+      lo_data_type = cl_abap_typedescr=>describe_by_data( <lt_tabular> ).
+      lo_table_type  ?= lo_data_type.
+      lo_struct_type ?= lo_table_type->get_table_line_type( ).
+      "Resolve included structures
+      TRY.
+          lo_struct_type = check_structure( lo_struct_type ).
+        CATCH lcx_classrun_output_npossible.
+          DELETE mt_stream INDEX lv_index.
+          CONTINUE.
+      ENDTRY.
+      lt_components = lo_struct_type->get_components( ).
+      lt_components_new = lt_components.
+      LOOP AT lt_components_new ASSIGNING <ls_component>.
+        <ls_component>-name = |ab_compvalue{ sy-tabix ALIGN = LEFT }|.
+        "Special handling for x and xstring: to avoid base64Binary use type string instead
+        IF <ls_component>-type->type_kind = cl_abap_elemdescr=>typekind_hex OR
+           <ls_component>-type->type_kind = cl_abap_elemdescr=>typekind_xstring.
+          lv_hex_flag = abap_true.
+          <ls_component>-type = cl_abap_elemdescr=>get_string( ).
+        ENDIF.
+      ENDLOOP.
+      lo_struct_type_new = cl_abap_structdescr=>get( lt_components_new ).
+      CREATE DATA lr_structured_new TYPE HANDLE lo_struct_type_new.
+      ASSIGN lr_structured_new->* TO <ls_structured_new>.
+      lo_table_type_new = cl_abap_tabledescr=>get(
+      p_line_type  = lo_struct_type_new
+      p_table_kind = cl_abap_tabledescr=>tablekind_std ).
+      CREATE DATA lr_tabular_new TYPE HANDLE lo_table_type_new.
+      ASSIGN lr_tabular_new->* TO <lt_tabular_new>.
+      IF lv_hex_flag = abap_false.
+        <lt_tabular_new> = <lt_tabular>.
+      ELSE.
+        "If type of x/xstring was changed to string, assignment is possible only field by field
+        CLEAR  <lt_tabular_new>.
+        LOOP AT <lt_tabular> ASSIGNING <ls_structured>.
+          lv_subrc = 0.
+          WHILE lv_subrc = 0.
+            ASSIGN COMPONENT sy-index OF STRUCTURE <ls_structured> TO <lv_old>.
+            ASSIGN COMPONENT sy-index OF STRUCTURE <ls_structured_new> TO <lv_new>.
+            lv_subrc = sy-subrc.
+            IF lv_subrc = 0.
+              <lv_new> = <lv_old>.
+            ENDIF.
+          ENDWHILE.
+          INSERT <ls_structured_new> INTO TABLE <lt_tabular_new>.
+        ENDLOOP.
+      ENDIF.
+      "Create new structure "components" with names of components
+      LOOP AT lt_components_new ASSIGNING <ls_component>.
+        REPLACE 'ab_compvalue' IN <ls_component>-name WITH 'ab_compname' IGNORING CASE ##no_text.
+        <ls_component>-type = cl_abap_elemdescr=>get_string( ).
+      ENDLOOP.
+      lo_struct_type_new = cl_abap_structdescr=>get( lt_components_new ).
+      CREATE DATA lr_structured_new TYPE HANDLE lo_struct_type_new.
+      ASSIGN lr_structured_new->* TO <ls_structured_new>.
+      LOOP AT lt_components ASSIGNING <ls_component>.
+        ASSIGN COMPONENT sy-tabix OF STRUCTURE <ls_structured_new> TO <lv_component>.
+        <lv_component> = <ls_component>-name.
+      ENDLOOP.
+      "Create new string "name" with name of data
+      CREATE DATA lr_elementary_new TYPE string.
+      ASSIGN lr_elementary_new->* TO <lv_elementary_new>.
+      <lv_elementary_new> = lv_name.
+      "Create structure with components for name, components, and data
+      CLEAR lt_components_obj.
+      APPEND INITIAL LINE TO lt_components_obj ASSIGNING <ls_component>.
+      <ls_component>-name = `ab_name` ##no_text.
+      <ls_component>-type = lo_elem_type_new.
+      APPEND INITIAL LINE TO lt_components_obj ASSIGNING <ls_component>.
+      <ls_component>-name = `ab_components` ##no_text.
+      <ls_component>-type = lo_struct_type_new.
+      APPEND INITIAL LINE TO lt_components_obj ASSIGNING <ls_component>.
+      <ls_component>-name = `ab_data` ##no_text.
+      <ls_component>-type = lo_table_type_new.
+      lo_struct_type_obj = cl_abap_structdescr=>get( lt_components_obj ).
+      CREATE DATA lr_structured_obj TYPE HANDLE lo_struct_type_obj.
+      ASSIGN lr_structured_obj->* TO <ls_structured_obj>.
+      ASSIGN COMPONENT 'AB_NAME' OF STRUCTURE <ls_structured_obj> TO <lv_component_obj>.
+      <lv_component_obj> = <lv_elementary_new>.
+      ASSIGN COMPONENT 'AB_COMPONENTS' OF STRUCTURE <ls_structured_obj> TO <lv_component_obj>.
+      <lv_component_obj> = <ls_structured_new>.
+      ASSIGN COMPONENT 'AB_DATA' OF STRUCTURE <ls_structured_obj> TO <lv_component_obj>.
+      "Replace data table with structure in stream
+      <lv_component_obj> = <lt_tabular_new>.
+      <ls_segment>-name = `ab_object` ##no_text.
+      <ls_segment>-value = lr_structured_obj.
+    ENDLOOP.
+
+  ENDMETHOD.
+
+  METHOD finalize_xml.
+    DATA lv_off TYPE i.
+    DATA lv_subrc TYPE sy-subrc.
+
+    REPLACE `<asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">`
+            IN iv_xml WITH `<ab:abapOutput xmlns:ab="http://www.sap.com/abapdemos">` ##no_text.
+    REPLACE `</asx:abap>`
+            IN iv_xml WITH `</ab:abapOutput>` ##no_text.
+    REPLACE ALL OCCURRENCES OF `<asx:values`
+            IN iv_xml WITH `<ab:output` ##no_text.
+    REPLACE ALL OCCURRENCES OF `</asx:values`
+            IN iv_xml WITH `</ab:output` ##no_text.
+    REPLACE ALL OCCURRENCES OF `AB_COMPONENTS>`
+            IN iv_xml WITH `ab_components>` ##no_text.
+    REPLACE ALL OCCURRENCES OF `AB_DATA>`
+            IN iv_xml WITH `ab:data>` ##no_text.
+    REPLACE ALL OCCURRENCES OF `AB_DATA/>`
+            IN iv_xml WITH `ab:data/>` ##no_text.
+    REPLACE ALL OCCURRENCES OF `item>`
+            IN iv_xml WITH `ab:row>` ##no_text.
+    REPLACE ALL OCCURRENCES OF REGEX `AB_COMPNAME\d+>`
+            IN iv_xml WITH `ab:compName>` ##no_text.
+    REPLACE ALL OCCURRENCES OF REGEX `AB_COMPVALUE\d+>`
+            IN iv_xml WITH `ab:compValue>` ##no_text.
+    REPLACE ALL OCCURRENCES OF REGEX `AB_COMPVALUE\d+/>`
+            IN iv_xml WITH `ab:compValue/>` ##no_text.
+    REPLACE ALL OCCURRENCES OF `AB_NAME>`
+            IN iv_xml WITH `ab:name>` ##no_text.
+    REPLACE ALL OCCURRENCES OF `<ab_`
+            IN iv_xml WITH `<ab:` ##no_text.
+    REPLACE ALL OCCURRENCES OF `</ab_`
+            IN iv_xml WITH `</ab:` ##no_text.
+    REPLACE ALL OCCURRENCES OF REGEX `(<)(ab:text)(_)([^>]+)(>)`
+            IN iv_xml WITH `$1$2 format="$4"$5` ##no_text.
+    REPLACE ALL OCCURRENCES OF REGEX `(</)(ab:text)(_)([^>]+)(>)`
+            IN iv_xml WITH `$1$2$5` ##no_text.
+    REPLACE ALL OCCURRENCES OF  `<ab:compName>AB_ELMNTRY</ab:compName>`
+            IN iv_xml WITH `` ##no_text.
+
+
+    WHILE lv_subrc = 0.
+      FIND `<ab:name>np` IN iv_xml MATCH OFFSET lv_off.
+      lv_subrc = sy-subrc.
+      IF lv_subrc = 0.
+        REPLACE FIRST OCCURRENCE OF `<ab:name>np` IN iv_xml WITH `<ab:name>` ##no_text.
+        REPLACE FIRST OCCURRENCE OF `<ab:data>` IN SECTION OFFSET lv_off OF iv_xml
+                                    WITH `<ab:data format="nonprop">` ##no_text.
+      ENDIF.
+    ENDWHILE.
+
+    CALL TRANSFORMATION id
+      SOURCE XML iv_xml
+      RESULT XML rv_xml.
+
+  ENDMETHOD.                                             "#EC CI_VALPAR
+
+  METHOD open.
+    CREATE OBJECT ro_stream.
+  ENDMETHOD.
+
+  METHOD structured2tabular.
+
+    DATA lo_table_type TYPE REF TO cl_abap_tabledescr.
+
+    FIELD-SYMBOLS: <ls_structured> TYPE data,
+                   <lt_tabular>    TYPE STANDARD TABLE.
+
+    TRY.
+        lo_table_type = cl_abap_tabledescr=>get(
+          p_line_type  = io_struct_type
+          p_table_kind = cl_abap_tabledescr=>tablekind_std ).
+        CREATE DATA rr_tabular TYPE HANDLE lo_table_type.
+        ASSIGN ir_structured->* TO <ls_structured>.
+        ASSIGN rr_tabular->* TO <lt_tabular>.
+        APPEND <ls_structured> TO <lt_tabular>.
+      CATCH cx_sy_table_creation.
+        GET REFERENCE OF 'Error' INTO rr_tabular ##no_text.
+    ENDTRY.
+
+  ENDMETHOD.
+
+  METHOD write_data.
+    DATA: lo_type        TYPE REF TO cl_abap_typedescr,
+          lo_elem_type   TYPE REF TO cl_abap_elemdescr,
+          lo_struct_type TYPE REF TO cl_abap_structdescr,
+          lo_table_type  TYPE REF TO cl_abap_tabledescr.
+
+    IF mv_closed = abap_true.
+      RETURN.
+    ENDIF.
+
+    CLEAR mv_name.
+    IF iv_name IS NOT INITIAL.
+      mv_name = iv_name.
+    ELSE.
+      mv_name = gc_initial_name.
+    ENDIF.
+
+    IF iv_format IS NOT INITIAL.
+      IF iv_format <> lif_classrun_output_formats=>nonprop.
+        CLEAR iv_format.
+      ENDIF.
+    ENDIF.
+
+    lo_type = cl_abap_typedescr=>describe_by_data( ia_value ).
+
+    TRY.
+        lo_elem_type ?= lo_type.
+        add_elementary_object( ia_elementary = ia_value
+                               io_elem_type  = lo_elem_type
+                               iv_format     = iv_format ).
+        RETURN.
+      CATCH cx_sy_move_cast_error ##no_handler.
+    ENDTRY.
+
+    TRY.
+        lo_struct_type ?= lo_type.
+        add_structured_object( ia_structured   = ia_value
+                               io_struct_type  = lo_struct_type
+                               iv_format     = iv_format ).
+        RETURN.
+      CATCH cx_sy_move_cast_error       ##no_handler.
+      CATCH lcx_classrun_output_npossible ##no_handler.
+    ENDTRY.
+
+    TRY.
+        lo_table_type ?= lo_type.
+        add_tabular_object( ia_tabular    = ia_value
+                            io_table_type = lo_table_type
+                            iv_format     = iv_format ).
+        RETURN.
+      CATCH cx_sy_move_cast_error       ##no_handler.
+      CATCH lcx_classrun_output_npossible ##no_handler.
+    ENDTRY.
+
+    write_text(
+      EXPORTING
+        iv_text   =    `Data type not yet supported ...` ) ##no_text.
+
+  ENDMETHOD.                                             "#EC CI_VALPAR
+
+  METHOD write_text.
+
+    FIELD-SYMBOLS: <ls_segment> LIKE LINE OF mt_stream,
+                   <lv_text>    TYPE string.
+
+    IF mv_closed = abap_true.
+      RETURN.
+    ENDIF.
+
+    IF iv_text IS INITIAL.
+      RETURN.
+    ENDIF.
+
+    IF iv_format <> gc_text AND iv_format <> gc_heading AND iv_format <> gc_nonprop.
+      iv_format = gc_text.
+    ENDIF.
+
+    IF iv_level < 1 OR iv_level > 4.
+      iv_level = 1.
+    ENDIF.
+
+    iv_text = escape( val = iv_text format = cl_abap_format=>e_xml_text ).
+
+*   *** ABAP PUSHCHANNEL  *** *.
+    IF cl_oo_adt_res_classrun=>mv_adt_communication_id IS NOT INITIAL AND cl_oo_adt_res_classrun=>mv_adt_request_id IS NOT INITIAL.
+*      call function 'SAPGUI_PROGRESS_INDICATOR' EXPORTING percentage = 1 text = 'hello world'.
+*      cl_apc_ws_progress_indicator=>get( i_window_id = conv #( cl_oo_adt_res_classrun=>mv_adt_communication_id ) )->send( i_percentage = 2 i_text = 'cl_apc_ws_progress_indicator' ).
+      " cl_adt_progress_indicator=>get_instance( request )->send( i_percentage = 2 i_text = 'ohai' ). " poc: desired api
+
+      DATA: message      TYPE string,
+            lx_amc_error TYPE REF TO cx_amc_error,
+            percentage   TYPE i,
+            lx_pi_error  TYPE REF TO cx_apc_ws_progress_indicator.
+
+
+      DATA: producer      TYPE REF TO if_amc_message_producer_pcp,
+            apc_is_active TYPE abap_bool.
+
+      TRY.
+          IF producer IS NOT BOUND.
+            producer ?= cl_amc_channel_manager=>create_message_producer( i_application_id       = cl_oo_adt_res_classrun=>mv_amc_application_id
+                                                                         i_channel_id           = cl_oo_adt_res_classrun=>mv_amc_channel_id
+                                                                         i_channel_extension_id = cl_oo_adt_res_classrun=>mv_adt_communication_id ).
+          ENDIF.
+
+          DATA(obj) = cl_ac_message_type_pcp=>create( ).
+          obj->set_text( iv_text ).
+          obj->set_field( i_name  = cl_oo_adt_res_classrun=>co_header_request_id
+                          i_value = cl_oo_adt_res_classrun=>mv_adt_request_id ).
+          producer->send( i_message = obj ).
+
+        CATCH cx_amc_error INTO lx_amc_error.
+          message = lx_amc_error->get_text( ).
+        CATCH cx_ac_message_type_pcp_error INTO DATA(lx_pcp_error).
+          message = lx_pcp_error->get_text( ).
+      ENDTRY.
+
+    ELSE.
+
+      APPEND INITIAL LINE TO mt_stream ASSIGNING <ls_segment>.
+      <ls_segment>-name  = iv_format.
+      IF <ls_segment>-name = gc_heading.
+        <ls_segment>-name =  <ls_segment>-name && |{ iv_level ALIGN = LEFT WIDTH = 1 }|.
+      ENDIF.
+      <ls_segment>-name = `ab_` && <ls_segment>-name.
+      CREATE DATA <ls_segment>-value TYPE string.
+      ASSIGN <ls_segment>-value->* TO <lv_text>.
+      <lv_text> = iv_text.
+
+    ENDIF.
+
+  ENDMETHOD.                                             "#EC CI_VALPAR
+
+ENDCLASS.
+
+
+************************************************************************
+
+CLASS lcl_classrun_output_text IMPLEMENTATION.
+
+  METHOD convert.
+
+    CALL TRANSFORMATION id SOURCE XML iv_xml
+                           RESULT XML rv_text.
+
+    SHIFT rv_text LEFT BY find( val = rv_text sub = `<ab:abapOutput` ) PLACES.
+    REPLACE `<ab:abapOutput xmlns:ab="http://www.sap.com/abapdemos">` IN rv_text WITH ``.
+
+    REPLACE `</ab:abapOutput>` IN rv_text WITH `` ##no_text.
+    REPLACE `<ab:output>` IN rv_text WITH `` ##no_text.
+    REPLACE `</ab:output>` IN rv_text WITH `` ##no_text.
+    REPLACE ALL OCCURRENCES OF REGEX `<([^>]+)/>` IN rv_text WITH `<$1></$1>` ##no_text.
+    REPLACE ALL OCCURRENCES OF `<ab:data format="nonprop">` IN rv_text WITH `<ab:data>`.
+    REPLACE ALL OCCURRENCES OF REGEX ` format=("[^"]+")>`  IN rv_text WITH `>` ##no_text.
+    REPLACE ALL OCCURRENCES OF `<ab:object>` IN rv_text WITH  `` ##no_text.
+*    REPLACE ALL OCCURRENCES OF `</ab:object>` IN rv_text WITH  `</table>` && |\n| ##no_text.
+    REPLACE ALL OCCURRENCES OF `</ab:object>` IN rv_text WITH  `</table>` ##no_text.
+
+*    REPLACE ALL OCCURRENCES OF REGEX `<ab:name>[^<]+</ab:name>` IN rv_text WITH ``.
+    REPLACE ALL OCCURRENCES OF REGEX `<ab:name>` IN rv_text WITH `<table><tr><td>`.
+    REPLACE ALL OCCURRENCES OF REGEX `</ab:name>` IN rv_text WITH `</td></tr></table>`.
+    REPLACE ALL OCCURRENCES OF `<ab:components>` IN rv_text WITH `<table><tr>` ##no_text.
+    REPLACE ALL OCCURRENCES OF `</ab:components>` IN rv_text WITH `</tr>` ##no_text.
+    REPLACE ALL OCCURRENCES OF `<ab:compName>` IN rv_text WITH `<td>` ##no_text.
+    REPLACE ALL OCCURRENCES OF `</ab:compName>` IN rv_text WITH `</td>` ##no_text.
+    REPLACE ALL OCCURRENCES OF `<ab:data>` IN rv_text WITH `` ##no_text.
+    REPLACE ALL OCCURRENCES OF `</ab:data>` IN rv_text WITH `` ##no_text.
+    REPLACE ALL OCCURRENCES OF `<ab:row>` IN rv_text WITH `<tr>`  ##no_text.
+    REPLACE ALL OCCURRENCES OF `</ab:row>` IN rv_text WITH `</tr>` ##no_text.
+    REPLACE ALL OCCURRENCES OF `<ab:compValue>` IN rv_text WITH `<td>` ##no_text.
+    REPLACE ALL OCCURRENCES OF `</ab:compValue>` IN rv_text WITH `</td>` ##no_text.
+    REPLACE ALL OCCURRENCES OF `&amp;lt;` IN rv_text WITH `&lt;` ##no_text.
+
+    IF rv_text CS `<table>` AND
+       rv_text CS `</table>`.
+      format_data( CHANGING cv_text = rv_text ).
+    ENDIF.
+    IF rv_text CS `<ab:text>` AND
+       rv_text CS `</ab:text>`.
+      format_text( CHANGING cv_text = rv_text ).
+    ENDIF.
+
+  ENDMETHOD.
+
+  METHOD format_data.
+    DATA lt_max TYPE TABLE OF i.
+
+    REPLACE ALL OCCURRENCES OF `<tr></tr>` IN cv_text WITH ``.
+
+    DO.
+      DATA lv_off1 TYPE i.
+      FIND `<table>` IN cv_text MATCH OFFSET lv_off1.
+      IF sy-subrc <> 0.
+        RETURN.
+      ENDIF.
+      DATA lv_off2 TYPE i.
+      FIND `</table>` IN cv_text MATCH OFFSET lv_off2.
+      DATA lv_section_old TYPE string.
+      lv_section_old = substring( val = cv_text
+                                  off = lv_off1
+                                  len = lv_off2 + strlen( `<\ table>` ) - lv_off1 - 1  ).
+
+      DATA lv_section_new TYPE string.
+      lv_section_new = lv_section_old.
+      REPLACE `<table>` IN lv_section_new WITH ``.
+      REPLACE `</table>` IN lv_section_new WITH ``.
+      REPLACE ALL OCCURRENCES OF `<tr>` IN lv_section_new WITH ``.
+      REPLACE ALL OCCURRENCES OF `<td>` IN lv_section_new WITH ``.
+
+      DATA lt_rows TYPE TABLE OF string.
+      SPLIT lv_section_new AT `</tr>` INTO TABLE lt_rows.
+      CLEAR lt_max.
+      DATA lv_row LIKE LINE OF lt_rows.
+      LOOP AT lt_rows INTO lv_row.
+        DATA lt_columns TYPE TABLE OF string.
+        SPLIT lv_row AT `</td>` INTO TABLE lt_columns.
+        IF lt_max IS INITIAL.
+          DO lines( lt_columns ) TIMES.
+            APPEND INITIAL LINE TO lt_max.
+          ENDDO.
+        ENDIF.
+        DATA lv_column LIKE LINE OF lt_columns.
+        LOOP AT lt_columns INTO lv_column.
+          FIELD-SYMBOLS <lv_max> LIKE LINE OF lt_max.
+          READ TABLE lt_max INDEX sy-tabix ASSIGNING <lv_max>.
+          IF strlen( lv_column ) > <lv_max>.
+            <lv_max> = strlen( lv_column ).
+          ENDIF.
+        ENDLOOP.
+      ENDLOOP.
+      SPLIT lv_section_new AT `</tr>` INTO TABLE lt_rows.
+      CLEAR lv_section_new.
+      LOOP AT lt_rows INTO lv_row.
+        SPLIT lv_row AT `</td>` INTO TABLE lt_columns.
+        LOOP AT lt_columns INTO lv_column.
+          REPLACE ALL OCCURRENCES OF `&lt;`   IN lv_column WITH `<`.
+          REPLACE ALL OCCURRENCES OF `&gt;`   IN lv_column WITH `>`.
+          REPLACE ALL OCCURRENCES OF `&amp;`  IN lv_column WITH `&`.
+          REPLACE ALL OCCURRENCES OF `&quot;` IN lv_column WITH `"`.
+          REPLACE ALL OCCURRENCES OF `&apos;` IN lv_column WITH `'`.
+          DATA lv_max LIKE LINE OF lt_max.
+          READ TABLE lt_max INDEX sy-tabix INTO lv_max.
+          lv_section_new = lv_section_new && |{ lv_column WIDTH = lv_max + 2 }|.
+        ENDLOOP.
+        lv_section_new = lv_section_new && |\n|.
+      ENDLOOP.
+
+      REPLACE  lv_section_old IN cv_text WITH lv_section_new.
+    ENDDO.
+
+  ENDMETHOD.
+
+  METHOD format_text.
+    "Format TEXT output
+    DATA lt_text TYPE TABLE OF string.
+    FIELD-SYMBOLS <lv_text> TYPE string.
+    REPLACE ALL OCCURRENCES OF `<ab:text>` IN cv_text WITH `<<<<ab:text>`.
+    REPLACE ALL OCCURRENCES OF `</ab:text>` IN cv_text WITH `</ab:text><<<`.
+    SPLIT cv_text AT '<<<' INTO TABLE lt_text.
+    DELETE lt_text WHERE table_line IS INITIAL.
+    LOOP AT lt_text ASSIGNING <lv_text> WHERE table_line CS `<ab:text>`.
+      IF <lv_text>(9) =  `<ab:text>`.
+        REPLACE ALL OCCURRENCES OF `&lt;`   IN <lv_text> WITH `<`.
+        REPLACE ALL OCCURRENCES OF `&gt;`   IN <lv_text> WITH `>`.
+        REPLACE ALL OCCURRENCES OF `&amp;`  IN <lv_text> WITH `&`.
+        REPLACE ALL OCCURRENCES OF `&quot;` IN <lv_text> WITH `"`.
+        REPLACE ALL OCCURRENCES OF `&apos;` IN <lv_text> WITH `'`.
+      ENDIF.
+    ENDLOOP.
+    CONCATENATE LINES OF lt_text INTO cv_text.
+    REPLACE ALL OCCURRENCES OF `<ab:text>` IN cv_text WITH ``.
+    REPLACE ALL OCCURRENCES OF `</ab:text>` IN cv_text WITH |\n|.
+  ENDMETHOD.
+
+  METHOD handle_output.
+    DATA lv_text TYPE string.
+    DATA lv_gui_flag TYPE abap_bool VALUE abap_false.
+
+    TRY.
+        lv_text = convert( ev_output ).
+      CATCH cx_sy_regex_too_complex.
+        lv_text = `Data too complex or too large, output not possible.` ##no_text.
+    ENDTRY.
+
+    IF gv_display = abap_true.
+      CALL FUNCTION 'GUI_IS_AVAILABLE'
+        IMPORTING
+          return = lv_gui_flag.
+    ENDIF.
+    IF lv_gui_flag IS NOT INITIAL.
+      "cl_demo_text=>show_string( lv_text  ).
+      TRY.
+          CALL METHOD ('CL_DEMO_TEXT')=>('SHOW_STRING') EXPORTING text_string = lv_text.
+        CATCH cx_sy_dyn_call_illegal_method.
+          MESSAGE 'Method CL_DEMO_TEXT=>SHOW_STRING not available in this system' TYPE 'S' ##NO_TEXT.
+          RETURN.
+      ENDTRY.
+    ELSE.
+      RAISE EVENT completed EXPORTING ev_text = lv_text.
+      EXPORT result_text = lv_text TO MEMORY ID 'RESULT_TEXT'.
+    ENDIF.
+
+  ENDMETHOD.
+
+  METHOD set_display.
+    gv_display = iv_mode.
+  ENDMETHOD.
+ENDCLASS.
+
+
+************************************************************************
+
+CLASS lcl_code_analysis_out IMPLEMENTATION.
+
+  METHOD get_par_name.
+
+    DATA:
+      progtab  TYPE TABLE OF string,
+      progline TYPE string,
+      idx      TYPE sy-tabix,
+      moff     TYPE i.
+
+    FIELD-SYMBOLS <progline> TYPE string.
+
+    "Count identic calls from one line
+    IF stack_frame <> lcl_code_analysis_out=>stack_frame OR
+       lines       <> lcl_code_analysis_out=>lines.
+      lcl_code_analysis_out=>stack_frame = stack_frame.
+      lcl_code_analysis_out=>lines       = lines.
+      counter = 0.
+    ELSE.
+      counter = counter + 1.
+    ENDIF.
+
+    READ REPORT stack_frame-include INTO progtab.
+    IF sy-subrc <> 0.
+      RAISE EXCEPTION TYPE lcx_name_out.
+    ENDIF.
+    DELETE progtab TO stack_frame-line - 1.
+    "Remove comments
+    LOOP AT progtab ASSIGNING <progline>.
+      IF strlen( <progline> ) > 0 AND <progline>(1) = '*'.
+        DELETE progtab.
+        CONTINUE.
+      ENDIF.
+      REPLACE REGEX `\A\s*".*` IN <progline> WITH `` ##no_text.
+      IF sy-subrc <> 0.
+        REPLACE REGEX `(.*)(")([^'|{``]+\z)` IN <progline> WITH `$1`.
+      ENDIF.
+      IF <progline> IS INITIAL.
+        DELETE progtab.
+      ENDIF.
+    ENDLOOP.
+    "Get all statements that are in or begin in the line
+    LOOP AT progtab ASSIGNING <progline>.
+      CONDENSE <progline>.
+      idx = sy-tabix.
+      REPLACE ALL OCCURRENCES OF REGEX `'[^']*\.[^']*'` IN <progline> WITH `'dummy'` ##no_text.
+      REPLACE ALL OCCURRENCES OF REGEX '`[^`]*\.[^`]*`' IN <progline> WITH '`dummy`' ##no_text.
+      IF idx = 1.
+        progline = progline && ` ` && <progline>.
+        IF substring( val = progline off = strlen( progline ) - 1 len = 1 ) = `.`.
+          EXIT.
+        ENDIF.
+      ELSE.
+        FIND `.` IN <progline> MATCH OFFSET moff.
+        IF sy-subrc = 0.
+          progline = progline && ` ` && substring( val = <progline> len = moff + 1 ).
+          EXIT.
+        ELSE.
+          progline = progline && ` ` && <progline>.
+        ENDIF.
+      ENDIF.
+    ENDLOOP.
+    "Separate the calls of one line
+    CONDENSE progline.
+    REPLACE ALL OCCURRENCES OF REGEX `\s?CALL METHOD\s([^.]+)\(\s(?:EXPORTING\s)?(?:value|data)\s=\s([^.]+)\s\)\s?\.` ##NO_TEXT
+           IN progline WITH `$1( $2 ).` IGNORING CASE.
+    CONDENSE progline.
+    REPLACE ALL OCCURRENCES OF REGEX `\s?CALL METHOD\s([^.]+)\sEXPORTING\s(?:value|data)\s=\s([^.]+)\s?\.` ##NO_TEXT
+            IN progline WITH `$1( $2 ).` IGNORING CASE.
+    CONDENSE progline.
+    REPLACE ALL OCCURRENCES OF REGEX `->write\w*\(` IN progline WITH `###(` IGNORING CASE.
+    REPLACE ALL OCCURRENCES OF REGEX `=>write\w*\(` IN progline WITH `###(` IGNORING CASE.
+    REPLACE ALL OCCURRENCES OF REGEX `->display\w*\(` IN progline WITH `###(` IGNORING CASE.
+    REPLACE ALL OCCURRENCES OF REGEX `=>display\w*\(` IN progline WITH `###(` IGNORING CASE.
+    REPLACE ALL OCCURRENCES OF REGEX `->get\w*\(` IN progline WITH `###(` IGNORING CASE.
+    REPLACE ALL OCCURRENCES OF REGEX `=>get\w*\(` IN progline WITH `###(` IGNORING CASE.
+    SPLIT progline AT `###(` INTO TABLE progtab.
+    IF lines( progtab ) <= 1.
+      RAISE EXCEPTION TYPE lcx_name_out.
+    ENDIF.
+    DELETE progtab INDEX 1.
+    LOOP AT progtab ASSIGNING <progline>.
+      REPLACE REGEX `([^)]+)(\).*)` IN <progline> WITH `$1`.
+      CONDENSE <progline>.
+      REPLACE REGEX `(?:EXPORTING )?(?:value|data) = ` IN <progline> WITH `` IGNORING CASE ##NO_TEXT.
+      IF <progline> CS ` `  OR
+         matches( val = <progline> regex = `-?\d+` ) OR           "no numeric literals
+         <progline> CS `'`                           OR           "no text field literals
+         <progline> CS '`'                           OR           "no string literals
+         <progline> CS `[` OR <progline> CS `]`      OR           "expressions (parenthesis)
+         <progline> CS `(` OR <progline> CS `)`.                  "expressions (parenthesis)
+        CLEAR <progline>.
+      ENDIF.
+    ENDLOOP.
+    IF counter = 0.
+      counter = 1.
+    ENDIF.
+    "Reset for calls in loops
+    IF counter > lines( progtab ).
+      counter = 1.
+    ENDIF.
+    READ TABLE progtab INTO ret INDEX counter.
+    ret = to_upper( ret ).
+
+  ENDMETHOD.
+ENDCLASS.
+
+************************************************************************
+
+
+
+CLASS lcl_classrun_output IMPLEMENTATION.
+
+  METHOD class_constructor.
+    static_stream_handle = lcl_classrun_output_stream=>open( ).
+  ENDMETHOD.
+
+  METHOD constructor.
+    me->mode = mode.
+    stream_handle = lcl_classrun_output_stream=>open( ).
+  ENDMETHOD.
+
+  METHOD exec_write.
+    DATA type TYPE c LENGTH 1.
+    DATA str TYPE string.
+    DATA comp TYPE i ##needed.
+    DATA pass_name TYPE string.
+
+    pass_name = get_name( ). "must be called for stack counting
+    IF name IS NOT INITIAL.
+      pass_name = name.
+    ENDIF.
+
+    DESCRIBE FIELD data TYPE type COMPONENTS comp.
+    IF data IS NOT INITIAL.
+      CASE type.
+        WHEN 'g'.
+          stream_handle->write_text(
+            EXPORTING
+              iv_text   = data
+              iv_format = lif_classrun_output_formats=>nonprop ).
+        WHEN 'C'.
+          str = data.
+          stream_handle->write_text(
+            EXPORTING
+              iv_text   = str
+              iv_format = lif_classrun_output_formats=>nonprop ).
+        WHEN OTHERS.
+          stream_handle->write_data(
+            EXPORTING
+              ia_value  = data
+              iv_format = lif_classrun_output_formats=>nonprop
+              iv_name   = pass_name ).
+      ENDCASE.
+    ELSE.
+      stream_handle->write_data(
+        EXPORTING
+          ia_value  = data
+          iv_format = lif_classrun_output_formats=>nonprop
+          iv_name   = pass_name ).
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD exec_write_data.
+    DATA pass_name TYPE string.
+
+    pass_name = get_name( ). "must be called for stack counting
+    IF name IS NOT INITIAL.
+      pass_name = name.
+    ENDIF.
+
+    stream_handle->write_data( ia_value = value
+                               iv_name  = pass_name ).
+  ENDMETHOD.
+
+
+  METHOD exec_write_text.
+    DATA type TYPE c LENGTH 1.
+    DATA str TYPE string.
+    DESCRIBE FIELD text TYPE type.
+    CASE type.
+      WHEN 'g'.
+        stream_handle->write_text(
+          EXPORTING
+            iv_text   = text  ).
+      WHEN OTHERS.
+        str = text.
+        stream_handle->write_text(
+          EXPORTING
+            iv_text   = str  ).
+    ENDCASE.
+  ENDMETHOD.
+
+  METHOD get.
+
+    IF data IS SUPPLIED.
+      lcl_classrun_output=>write( data = data
+                             name = name ).
+    ENDIF.
+
+    set_static_handler( lcl_classrun_output=>static_mode ).
+    CASE lcl_classrun_output=>static_mode.
+      WHEN text_mode.
+        lcl_classrun_output_text=>set_display( abap_false ).
+        SET HANDLER set_static_text ACTIVATION 'X'.
+        static_stream_handle->close( ).
+        output = static_text_string.
+        CLEAR static_text_string.
+    ENDCASE.
+
+    static_heading_level = 0.
+    SET HANDLER set_static_text ACTIVATION ' '.
+    SET HANDLER lcl_classrun_output_text=>handle_output FOR static_stream_handle ACTIVATION ' '.
+    static_stream_handle = lcl_classrun_output_stream=>open( ).
+
+  ENDMETHOD.
+
+  METHOD get_name.
+    DATA: lt_stack TYPE abap_callstack,
+          ls_stack TYPE LINE OF abap_callstack,
+          lt_lines TYPE TABLE OF abap_callstack_line-line,
+          idx      TYPE sy-tabix.
+    CALL FUNCTION 'SYSTEM_CALLSTACK'
+      IMPORTING
+        callstack = lt_stack.
+    LOOP AT lt_stack INTO ls_stack.
+      idx = sy-tabix.
+      IF  ls_stack-include <> 'Z_DEMO_FRAME' ##no_text.
+        EXIT.
+      ENDIF.
+    ENDLOOP.
+    LOOP AT lt_stack INTO ls_stack FROM idx + 1.
+      APPEND ls_stack-line TO lt_lines.
+    ENDLOOP.
+    READ TABLE lt_stack INTO ls_stack INDEX idx.
+    TRY.
+        name = lcl_code_analysis_out=>get_par_name( stack_frame = ls_stack
+                                                lines       = lt_lines ).
+      CATCH lcx_name_out.
+        CLEAR name.
+    ENDTRY.
+  ENDMETHOD.
+
+  METHOD if_oo_adt_classrun_out~get.
+
+    IF data IS SUPPLIED.
+      me->if_oo_adt_classrun_out~write( data = data
+                                name = name ).
+    ENDIF.
+
+    set_instance_handler( me->mode ).
+    CASE me->mode.
+      WHEN text_mode.
+        lcl_classrun_output_text=>set_display( abap_false ).
+        SET HANDLER set_instance_text ACTIVATION 'X'.
+        stream_handle->close( ).
+        output = text_string.
+        CLEAR text_string.
+      WHEN OTHERS.
+    ENDCASE.
+
+    heading_level = 0.
+    SET HANDLER set_instance_text ACTIVATION ' '.
+    SET HANDLER lcl_classrun_output_text=>handle_output FOR stream_handle ACTIVATION ' '.
+    stream_handle = lcl_classrun_output_stream=>open( ).
+
+  ENDMETHOD.
+
+  METHOD if_oo_adt_classrun_out~write.
+    exec_write( stream_handle = stream_handle
+                data          = data
+                name          = name ).
+    output = me.
+  ENDMETHOD.
+
+  METHOD new.
+    CREATE OBJECT output TYPE lcl_classrun_output
+      EXPORTING
+        mode = mode.
+  ENDMETHOD.
+
+  METHOD set_instance_handler.
+    CASE mode.
+      WHEN text_mode.
+        SET HANDLER lcl_classrun_output_text=>handle_output FOR stream_handle ACTIVATION 'X '.
+      WHEN OTHERS.
+        SET HANDLER lcl_classrun_output_text=>handle_output FOR stream_handle ACTIVATION ' '.
+    ENDCASE.
+  ENDMETHOD.
+
+  METHOD set_instance_text.
+    text_string = ev_text.
+  ENDMETHOD.
+
+  METHOD set_mode.
+    lcl_classrun_output=>static_mode = mode.
+  ENDMETHOD.
+
+  METHOD set_static_handler.
+    CASE mode.
+      WHEN text_mode.
+        SET HANDLER lcl_classrun_output_text=>handle_output FOR static_stream_handle ACTIVATION 'X '.
+      WHEN OTHERS.
+        SET HANDLER lcl_classrun_output_text=>handle_output FOR static_stream_handle ACTIVATION ' '.
+    ENDCASE.
+  ENDMETHOD.
+
+  METHOD set_static_text.
+    static_text_string = ev_text.
+  ENDMETHOD.
+
+  METHOD write.
+    exec_write( stream_handle = static_stream_handle
+                data          = data
+                name   = name ).
+  ENDMETHOD.
+
+ENDCLASS.
+
+*******************************************************************************
+
+CLASS lcl_code_analysis  IMPLEMENTATION.
+
+  METHOD get_par_name.
+
+    DATA:
+      progtab  TYPE TABLE OF string,
+      progline TYPE string,
+      idx      TYPE sy-tabix,
+      moff     TYPE i.
+
+    FIELD-SYMBOLS <progline> TYPE string.
+
+    "Count identic calls from one line
+    IF stack_frame <> lcl_code_analysis=>stack_frame OR
+       lines       <> lcl_code_analysis=>lines.
+      lcl_code_analysis=>stack_frame = stack_frame.
+      lcl_code_analysis=>lines       = lines.
+      counter = 0.
+    ELSE.
+      counter = counter + 1.
+    ENDIF.
+
+    READ REPORT stack_frame-include INTO progtab.
+    IF sy-subrc <> 0.
+      RAISE EXCEPTION TYPE lcl_cx_name.
+    ENDIF.
+    DELETE progtab TO stack_frame-line - 1.
+    "Remove comments
+    LOOP AT progtab ASSIGNING <progline>.
+      IF strlen( <progline> ) > 0 AND <progline>(1) = '*'.
+        DELETE progtab.
+        CONTINUE.
+      ENDIF.
+      REPLACE REGEX `\A\s*".*` IN <progline> WITH `` ##no_text.
+      IF sy-subrc <> 0.
+        REPLACE REGEX `(.*)(")([^'|{``]+\z)` IN <progline> WITH `$1`.
+      ENDIF.
+      IF <progline> IS INITIAL.
+        DELETE progtab.
+      ENDIF.
+    ENDLOOP.
+    "Get all statements that are in or begin in the line
+    LOOP AT progtab ASSIGNING <progline>.
+      CONDENSE <progline>.
+      idx = sy-tabix.
+      REPLACE ALL OCCURRENCES OF REGEX `'[^']*\.[^']*'` IN <progline> WITH `'dummy'` ##no_text.
+      REPLACE ALL OCCURRENCES OF REGEX '`[^`]*\.[^`]*`' IN <progline> WITH '`dummy`' ##no_text.
+      IF idx = 1.
+        progline = progline && ` ` && <progline>.
+        IF substring( val = progline off = strlen( progline ) - 1 len = 1 ) = `.`.
+          EXIT.
+        ENDIF.
+      ELSE.
+        FIND `.` IN <progline> MATCH OFFSET moff.
+        IF sy-subrc = 0.
+          progline = progline && ` ` && substring( val = <progline> len = moff + 1 ).
+          EXIT.
+        ELSE.
+          progline = progline && ` ` && <progline>.
+        ENDIF.
+      ENDIF.
+    ENDLOOP.
+    "Separate the calls of one line
+    CONDENSE progline.
+    REPLACE ALL OCCURRENCES OF REGEX `\s?CALL METHOD\s([^.]+)\(\s(?:EXPORTING\s)?(?:value|data)\s=\s([^.]+)\s\)\s?\.` ##NO_TEXT
+           IN progline WITH `$1( $2 ).` IGNORING CASE.
+    CONDENSE progline.
+    REPLACE ALL OCCURRENCES OF REGEX `\s?CALL METHOD\s([^.]+)\sEXPORTING\s(?:value|data)\s=\s([^.]+)\s?\.` ##NO_TEXT
+            IN progline WITH `$1( $2 ).` IGNORING CASE.
+    CONDENSE progline.
+    REPLACE ALL OCCURRENCES OF REGEX `->write\w*\(` IN progline WITH `###(` IGNORING CASE.
+    REPLACE ALL OCCURRENCES OF REGEX `=>write\w*\(` IN progline WITH `###(` IGNORING CASE.
+    REPLACE ALL OCCURRENCES OF REGEX `->display\w*\(` IN progline WITH `###(` IGNORING CASE.
+    REPLACE ALL OCCURRENCES OF REGEX `=>display\w*\(` IN progline WITH `###(` IGNORING CASE.
+    REPLACE ALL OCCURRENCES OF REGEX `->get\w*\(` IN progline WITH `###(` IGNORING CASE.
+    REPLACE ALL OCCURRENCES OF REGEX `=>get\w*\(` IN progline WITH `###(` IGNORING CASE.
+    SPLIT progline AT `###(` INTO TABLE progtab.
+    IF lines( progtab ) <= 1.
+      RAISE EXCEPTION TYPE lcl_cx_name.
+    ENDIF.
+    DELETE progtab INDEX 1.
+    LOOP AT progtab ASSIGNING <progline>.
+      REPLACE REGEX `([^)]+)(\).*)` IN <progline> WITH `$1`.
+      CONDENSE <progline>.
+      REPLACE REGEX `(?:EXPORTING )?(?:value|data) = ` IN <progline> WITH `` IGNORING CASE ##NO_TEXT.
+      IF <progline> CS ` `  OR
+         matches( val = <progline> regex = `-?\d+` ) OR           "no numeric literals
+         <progline> CS `'`                           OR           "no text field literals
+         <progline> CS '`'                           OR           "no string literals
+         <progline> CS `[` OR <progline> CS `]`      OR           "expressions (parenthesis)
+         <progline> CS `(` OR <progline> CS `)`.                  "expressions (parenthesis)
+        CLEAR <progline>.
+      ENDIF.
+    ENDLOOP.
+    IF counter = 0.
+      counter = 1.
+    ENDIF.
+    "Reset for calls in loops
+    IF counter > lines( progtab ).
+      counter = 1.
+    ENDIF.
+    READ TABLE progtab INTO ret INDEX counter.
+    ret = to_upper( ret ).
+
+  ENDMETHOD.
+
+ENDCLASS.
+
+CLASS ltcl_res_classrun DEFINITION FINAL FOR TESTING
+  DURATION SHORT
+  RISK LEVEL HARMLESS.
+
+  PRIVATE SECTION.
+
+    DATA out  TYPE xstring.
+    DATA resource     TYPE REF TO cl_adt_rest_resource.
+    DATA request_stub TYPE REF TO cl_adt_rest_request_stub.
+    DATA response_spy TYPE REF TO cl_adt_rest_response_spy.
+
+    METHODS main_method_called    FOR TESTING RAISING cx_static_check.
+    METHODS main_method_called_profiler    FOR TESTING RAISING cx_static_check.
+    METHODS serialze_successfull  FOR TESTING RAISING cx_static_check.
+    METHODS read_data_from_ddls  FOR TESTING RAISING cx_static_check.
+
+ENDCLASS.

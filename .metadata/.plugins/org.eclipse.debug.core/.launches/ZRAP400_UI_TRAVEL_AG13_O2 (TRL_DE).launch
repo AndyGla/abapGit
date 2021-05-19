@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<launchConfiguration type="com.sap.adt.tools.abap.unit.launchConfigurationType">
+    <stringAttribute key="abapUnitObjectName" value="ZRAP400_UI_TRAVEL_AG13_O2"/>
+    <stringAttribute key="abapUnitObjectType" value="SRVB/SVB"/>
+    <booleanAttribute key="appendForeignPreviewTests" value="false"/>
+    <booleanAttribute key="containsPackage" value="false"/>
+    <stringAttribute key="displayName" value="ZRAP400_UI_TRAVEL_AG13_O2"/>
+    <booleanAttribute key="includeAssignedTests" value="true"/>
+    <booleanAttribute key="includeOwnTests" value="false"/>
+    <stringAttribute key="projectName" value="TRL_DE"/>
+    <intAttribute key="testDurations" value="7"/>
+    <intAttribute key="testRiskLevels" value="7"/>
+    <setAttribute key="uris">
+        <setEntry value="/sap/bc/adt/businessservices/bindings/zrap400_ui_travel_ag13_o2"/>
+    </setAttribute>
+</launchConfiguration>

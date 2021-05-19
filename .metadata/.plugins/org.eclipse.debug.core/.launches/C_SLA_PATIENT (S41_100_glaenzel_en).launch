@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<launchConfiguration type="com.sap.adt.sapgui.ui.launchConfigurationType">
+    <stringAttribute key="OBJECT_NAME" value="/SU01/C_SLA_PATIENT"/>
+    <stringAttribute key="OBJECT_TYPE" value="DDLS/DF"/>
+    <stringAttribute key="OBJECT_URI" value="/sap/bc/adt/ddic/ddl/sources/%2fsu01%2fc_sla_patient"/>
+    <stringAttribute key="PROJECT_NAME" value="S41_100_glaenzel_en"/>
+    <stringAttribute key="WB_ACTION" value="EXECUTE"/>
+    <listAttribute key="org.eclipse.debug.core.MAPPED_RESOURCE_PATHS">
+        <listEntry value="/S41_100_glaenzel_en"/>
+    </listAttribute>
+    <listAttribute key="org.eclipse.debug.core.MAPPED_RESOURCE_TYPES">
+        <listEntry value="4"/>
+    </listAttribute>
+</launchConfiguration>
